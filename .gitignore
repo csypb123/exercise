@@ -1,0 +1,101 @@
+# ==================== Python 编译缓存 ====================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# ==================== 虚拟环境 ====================
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# ==================== 打包构建产物 ====================
+build/
+dist/
+*.egg-info/
+*.egg
+.Python
+sdist/
+wheels/
+pip-wheel-metadata/
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+var/
+
+# ==================== PyInstaller ====================
+*.manifest
+*.spec
+
+# ==================== 安装器日志 ====================
+pip-log.txt
+pip-delete-this-directory.txt
+
+# ==================== 测试与覆盖率报告 ====================
+.pytest_cache/
+.tox/
+.nox/
+htmlcov/
+.coverage
+.coverage.*
+*.cover
+coverage.xml
+nosetests.xml
+.hypothesis/
+
+# ==================== 类型检查缓存 ====================
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+
+# ==================== 日志文件 ====================
+*.log
+logs/
+
+# ==================== 环境变量与密钥配置 ====================
+.env
+.env.local
+
+# ==================== 数据库文件 ====================
+db.sqlite3
+db.sqlite3-journal
+
+# ==================== IDE 配置文件 ====================
+# PyCharm
+.idea/
+*.iml
+# VS Code
+.vscode/
+*.code-workspace
+# Spyder
+.spyderproject
+.spyproject
+# Rope
+.ropeproject
+
+# ==================== Jupyter Notebook ====================
+.ipynb_checkpoints/
+
+# ==================== 文档构建产物 ====================
+docs/_build/
+/site/
+
+# ==================== 操作系统垃圾文件 ====================
+.DS_Store
+Thumbs.db
+
+# ==================== 数据与大资源文件（按需启用） ====================
+# data/
+# dataset/
+# *.pt
+# *.npy
+# *.tif
