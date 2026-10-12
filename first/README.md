@@ -31,7 +31,7 @@
 
 ### Windows（用 CMD 命令行启动）
 
-下面以本项目的实际路径 `D:\Users\ASUS\Desktop\exercise` 为例，一步步演示。
+下面以本项目的实际路径 `D:\Users\ASUS\Desktop\exercise\first` 为例，一步步演示。
 
 #### 第 1 步：打开命令提示符（CMD）
 
@@ -56,12 +56,12 @@ D:
 使用 `cd` 命令切换到项目所在文件夹：
 
 ```cmd
-cd D:\Users\ASUS\Desktop\exercise
+cd D:\Users\ASUS\Desktop\exercise\first
 ```
 
-回车后，提示符会变成 `D:\Users\ASUS\Desktop\exercise>`，说明已经进入项目目录。
+回车后，提示符会变成 `D:\Users\ASUS\Desktop\exercise\first>`，说明已经进入项目目录。
 
-> 提示：路径较长或含空格时，可以用双引号包起来，例如 `cd "D:\Users\ASUS\Desktop\exercise"`。
+> 提示：路径较长或含空格时，可以用双引号包起来，例如 `cd "D:\Users\ASUS\Desktop\exercise\first"`。
 
 #### 第 4 步：确认文件是否存在（可选）
 
@@ -107,7 +107,7 @@ python guess_number_game.py
 2. 切换到项目所在文件夹，例如：
 
    ```bash
-   cd ~/Desktop/exercise
+   cd ~/Desktop/exercise/first
    ```
 
 3. 运行游戏：
@@ -120,9 +120,11 @@ python guess_number_game.py
 
 ```
 exercise/
-├── README.md               # 项目说明文档（本文件）
-├── guess_number_game.py    # 游戏主程序
-└── .gitignore              # Git 忽略规则
+├── first/                      # 本次打包的文件夹
+│   ├── README.md               # 项目说明文档（本文件）
+│   └── guess_number_game.py    # 游戏主程序
+├── .vscode/                    # VS Code 配置
+└── .gitignore                  # Git 忽略规则
 ```
 
 ## 代码逻辑说明
