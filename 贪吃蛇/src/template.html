@@ -138,6 +138,95 @@
   }
   .note b { color: #14306b; }
 
+  /* ---------------- 成绩统计窗口 ---------------- */
+  .modal {
+    position: fixed; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+    background: rgba(15, 23, 42, .38);
+    backdrop-filter: blur(3px);
+    z-index: 50;
+    animation: fade .16s ease-out;
+  }
+  .modal[hidden] { display: none; }
+  @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes pop { from { opacity: .55; transform: translateY(9px) scale(.985); } to { opacity: 1; transform: none; } }
+  .modal-card {
+    width: 100%; max-width: 424px;
+    max-height: min(84vh, 620px);
+    display: flex; flex-direction: column;
+    background: var(--card);
+    border-radius: 18px;
+    box-shadow: 0 24px 64px rgba(15, 23, 42, .26);
+    animation: pop .18s ease-out;
+    overflow: hidden;
+  }
+  .modal-hd {
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+    padding: 16px 18px 12px;
+    border-bottom: 1px solid var(--line);
+  }
+  .modal-hd h2 { margin: 0; font-size: 15.5px; font-weight: 700; letter-spacing: .2px; }
+  .modal-hd h2 span { display: block; margin-top: 4px; font-size: 11.5px; font-weight: 400; color: var(--ink2); }
+  .modal-x {
+    flex: none;
+    width: 30px; height: 30px; padding: 0;
+    border: 1px solid transparent; border-radius: 9px;
+    font-size: 17px; line-height: 1; color: var(--ink2);
+    background: #f4f7fd;
+  }
+  .modal-x:hover:not(:disabled) { background: #e9effa; color: var(--ink); }
+  .modal-body { padding: 14px 18px 18px; overflow-y: auto; }
+
+  .avg {
+    display: flex; align-items: baseline; gap: 7px;
+    padding: 13px 14px 12px;
+    background: linear-gradient(180deg, #f6faff, #eef4ff);
+    border: 1px solid #e2ebfa;
+    border-radius: 14px;
+  }
+  .avg b {
+    font-size: 31px; line-height: 1; letter-spacing: -1px;
+    font-variant-numeric: tabular-nums; color: #1d4ed8;
+  }
+  .avg span { font-size: 12.5px; color: var(--ink2); }
+  .avg em { margin-left: auto; font-style: normal; font-size: 11.5px; color: var(--ink3); }
+
+  .spark {
+    display: flex; align-items: flex-end; gap: 4px;
+    height: 64px; margin-top: 14px;
+    padding: 6px 10px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .spark i {
+    flex: 1 1 0; min-width: 3px;
+    border-radius: 3px 3px 0 0;
+    transition: height .2s ease;
+  }
+  .spark i.win { background: linear-gradient(180deg, #a8c9f8, #5b93ec); }
+  .spark i.over { background: #f3c7c7; }
+  .spark i.newest { background: linear-gradient(180deg, #5b8def, #1d4ed8); }
+
+  .list { margin-top: 12px; width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .list th {
+    padding: 4px 6px; text-align: right; font-size: 11.5px;
+    font-weight: 500; color: var(--ink3);
+    border-bottom: 1px solid var(--line);
+  }
+  .list th:first-child, .list td:first-child { text-align: left; }
+  .list td {
+    padding: 6px; text-align: right; color: var(--ink);
+    font-variant-numeric: tabular-nums;
+    border-bottom: 1px dashed #f0f4fa;
+  }
+  .list tr:last-child td { border-bottom: 0; }
+  .list td.steps { font-weight: 650; }
+  .list td.gap { color: var(--ink2); }
+  .tag { display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: 11px; }
+  .tag.win { color: #15803d; background: #e8f7ee; }
+  .tag.over { color: #b91c1c; background: #fdeaea; }
+  .empty { padding: 20px 6px; text-align: center; font-size: 12.5px; line-height: 1.7; color: var(--ink2); }
+
   /* ---------------- 右侧棋盘 ---------------- */
   .stage { padding: 14px 14px 16px; }
   .legend {
@@ -182,6 +271,7 @@
     <div class="rows">
       <div class="row"><span>规划下界</span><b id="stat-opt">--</b></div>
       <div class="row"><span>比下界多走</span><b id="stat-gap">--</b></div>
+      <div class="row"><span id="stat-recent-label">近 10 局均步</span><b id="stat-recent">--</b></div>
     </div>
 
     <div class="btns">
@@ -190,6 +280,7 @@
       <button id="btn-step">单步</button>
       <button id="btn-finish">一键跑完</button>
       <button id="btn-replay" class="wide" disabled>看回放</button>
+      <button id="btn-stats" class="wide">近几局成绩</button>
     </div>
 
     <div class="speed">
@@ -216,6 +307,16 @@
     </div>
     <canvas id="board"></canvas>
   </main>
+</div>
+
+<div class="modal" id="stats-modal" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="stats-title">
+    <div class="modal-hd">
+      <h2 id="stats-title">近几局平均步数<span id="stats-sub">还没有完成的局</span></h2>
+      <button class="modal-x" id="stats-close" aria-label="关闭">×</button>
+    </div>
+    <div class="modal-body" id="stats-body"></div>
+  </div>
 </div>
 
 <script>

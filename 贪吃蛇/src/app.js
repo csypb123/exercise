@@ -47,11 +47,12 @@
   const $ = id => document.getElementById(id);
   const ui = {
     steps: $('stat-steps'), apples: $('stat-apples'), len: $('stat-len'), status: $('stat-status'),
-    opt: $('stat-opt'), gap: $('stat-gap'),
+    opt: $('stat-opt'), gap: $('stat-gap'), recent: $('stat-recent'), recentLabel: $('stat-recent-label'),
     btnNew: $('btn-new'), btnAI: $('btn-ai'), btnStep: $('btn-step'),
-    btnFinish: $('btn-finish'), btnReplay: $('btn-replay'),
+    btnFinish: $('btn-finish'), btnReplay: $('btn-replay'), btnStats: $('btn-stats'),
     speed: $('speed'), speedTxt: $('speed-txt'),
-    note: $('note'), replayBar: $('replay-bar'), replayRange: $('replay-range'), replayTxt: $('replay-txt')
+    note: $('note'), replayBar: $('replay-bar'), replayRange: $('replay-range'), replayTxt: $('replay-txt'),
+    statsModal: $('stats-modal'), statsBody: $('stats-body'), statsSub: $('stats-sub'), statsClose: $('stats-close')
   };
 
   /* ---------------- 取当前要画的帧 ---------------- */
@@ -145,6 +146,8 @@
     ui.status.className = 'v ' + (f.status === 'win' ? 'ok' : f.status === 'over' ? 'bad' : '');
     ui.opt.textContent = game.optTotal ? game.optTotal + ' 步' : '--';
     ui.gap.textContent = (f.status === 'win' || f.status === 'over') ? (f.steps - game.optTotal) + ' 步' : '--';
+    const recentAvg = summarize(games.slice(-RECENT)).avg;
+    ui.recent.textContent = recentAvg === null ? '--' : recentAvg.toFixed(1) + ' 步';
 
     const ended = f.status === 'over' || f.status === 'win';
     ui.btnAI.disabled = ended;
@@ -179,6 +182,125 @@
     ui.note.innerHTML = note;
   }
 
+  /* ---------------- 成绩统计：近几局平均步数 ---------------- */
+  const RECENT = 10;                          // “近几局”的窗口大小，想改就改这里
+  const MAX_STORE = 200;                      // 本地最多留 200 局
+  const STORE_KEY = 'snake-recent-games-v1';
+
+  function readStore() {
+    try {
+      if (typeof localStorage === 'undefined') return [];
+      const raw = localStorage.getItem(STORE_KEY);
+      const arr = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(arr)) return [];
+      return arr
+        .filter(g => g && typeof g.steps === 'number' && isFinite(g.steps))
+        .map(g => ({
+          steps: g.steps,
+          status: g.status === 'win' ? 'win' : 'over',
+          optTotal: typeof g.optTotal === 'number' && isFinite(g.optTotal) ? g.optTotal : 0,
+          at: typeof g.at === 'number' ? g.at : 0
+        }))
+        .slice(-MAX_STORE);
+    } catch (err) {
+      return [];                              // 存储被禁用 / 内容坏了：当作没有历史
+    }
+  }
+
+  function saveStore() {
+    try {
+      if (typeof localStorage === 'undefined') return;
+      localStorage.setItem(STORE_KEY, JSON.stringify(games));
+    } catch (err) { /* 隐私模式或配额满：只影响历史记忆，不影响游戏本身 */ }
+  }
+
+  let games = readStore();                    // 按时间正序，最后一个是最近一局
+  let recorded = false;                       // 本局是否已计入统计，防止重复记账
+
+  // 平均步数只统计“通关”的局：撞毁的局步数不完整，会把平均值拉低
+  function summarize(list) {
+    const wins = list.filter(g => g.status === 'win');
+    let steps = 0, gap = 0;
+    for (let i = 0; i < wins.length; i++) {
+      steps += wins[i].steps;
+      gap += wins[i].steps - wins[i].optTotal;
+    }
+    return {
+      total: list.length,
+      wins: wins.length,
+      avg: wins.length ? steps / wins.length : null,
+      gap: wins.length ? gap / wins.length : null
+    };
+  }
+
+  function esc(v) {
+    return String(v).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  }
+
+  function renderStats() {
+    const recent = games.slice(-RECENT);       // 最近的几局，时间正序
+    const s = summarize(recent);
+    const newestFirst = recent.slice().reverse();
+
+    ui.statsSub.textContent = recent.length
+      ? `最近 ${recent.length} 局 · 通关 ${s.wins} 局 · 平均比下界多走 ${s.gap === null ? '--' : s.gap.toFixed(1)} 步`
+      : '还没有完成的局';
+
+    if (!recent.length) {
+      ui.statsBody.innerHTML =
+        '<div class="empty">还没有完成的对局。<br />点“AI 自动玩”或“一键跑完”，一局结束后这里就会开始记录。</div>';
+      return;
+    }
+
+    // 柱子按时间从左到右，最右边是最新一局
+    const peak = Math.max(1, ...recent.map(g => g.steps));
+    const bars = recent.map((g, i) => {
+      const h = Math.max(8, Math.round((g.steps / peak) * 100));
+      const cls = g.status === 'win' ? 'win' : 'over';
+      const last = i === recent.length - 1 ? ' newest' : '';
+      const tip = `第 ${i + 1} 局 · ${g.steps} 步 · ${g.status === 'win' ? '通关' : '撞毁'}`;
+      return `<i class="${cls}${last}" style="height:${h}%" title="${esc(tip)}"></i>`;
+    }).join('');
+
+    const rows = newestFirst.map((g, i) => {
+      const win = g.status === 'win';
+      const tag = win ? '<span class="tag win">通关</span>' : '<span class="tag over">撞毁</span>';
+      const gap = win ? `+${g.steps - g.optTotal} 步` : '--';
+      const label = i === 0 ? '最新' : (i === 1 ? '上一局' : i + ' 局前');
+      return `<tr><td>${label} ${tag}</td>` +
+        `<td class="steps">${g.steps} 步</td><td class="gap">${gap}</td></tr>`;
+    }).join('');
+
+    ui.statsBody.innerHTML =
+      `<div class="avg"><b>${s.avg === null ? '--' : s.avg.toFixed(1)}</b>` +
+      `<span>步 / 局（通关局平均）</span><em>近 ${recent.length} 局</em></div>` +
+      `<div class="spark">${bars}</div>` +
+      '<table class="list"><thead><tr><th>对局</th><th>步数</th><th>多走下界</th></tr></thead>' +
+      `<tbody>${rows}</tbody></table>`;
+  }
+
+  function recordGame() {
+    if (recorded) return;
+    if (game.status !== 'win' && game.status !== 'over') return;
+    recorded = true;
+    games.push({ steps: game.steps, status: game.status, optTotal: game.optTotal || 0, at: Date.now() });
+    if (games.length > MAX_STORE) games = games.slice(-MAX_STORE);
+    saveStore();
+    if (!ui.statsModal.hidden) renderStats();
+  }
+
+  function openStats() {
+    renderStats();
+    ui.statsModal.hidden = false;
+  }
+
+  function closeStats() {
+    ui.statsModal.hidden = true;
+  }
+
+  // 侧栏那行标签跟着 RECENT 走，改局数只需要改一个常量
+  ui.recentLabel.textContent = '近 ' + RECENT + ' 局均步';
+
   /* ---------------- 主循环 ---------------- */
   function loop(t) {
     const dt = Math.min(t - lastT, 250);
@@ -208,6 +330,7 @@
       acc = 0;
     }
 
+    recordGame();
     draw();
     updateUI();
     requestAnimationFrame(loop);
@@ -219,6 +342,7 @@
     acc = 0;
     game = new E.Game();
     replayIdx = 0;
+    recorded = false;
   }
 
   ui.btnNew.addEventListener('click', newGame);
@@ -248,6 +372,11 @@
   ui.replayRange.addEventListener('input', e => {
     replayIdx = parseInt(e.target.value, 10) || 0;
   });
+  ui.btnStats.addEventListener('click', openStats);
+  ui.statsClose.addEventListener('click', closeStats);
+  ui.statsModal.addEventListener('click', e => {
+    if (e.target === ui.statsModal) closeStats();   // 点遮罩关闭
+  });
   ui.speed.addEventListener('input', e => {
     speedIdx = parseInt(e.target.value, 10);
     ui.speedTxt.textContent = SPEED_TXT[speedIdx];
@@ -255,6 +384,7 @@
   });
 
   document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { closeStats(); return; }
     if (e.code === 'Space') { e.preventDefault(); ui.btnAI.click(); }
     else if (e.key === 'r' || e.key === 'R') newGame();
     else if (e.key === 'ArrowRight' && mode === 'replay') { replayIdx = Math.min(replayIdx + 1, game.history.length - 1); mode = 'idle'; }
