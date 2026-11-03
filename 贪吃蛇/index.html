@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>贪吃蛇吃豆 · AI 自动寻路</title>
+<style>
+  :root {
+    --bg: #eef2f9;
+    --card: #ffffff;
+    --ink: #0f172a;
+    --ink2: #64748b;
+    --ink3: #94a3b8;
+    --line: #e6ebf4;
+    --brand: #2563eb;
+    --brand-soft: #eaf1ff;
+    --apple: #e5484d;
+    --snake: #15803d;
+  }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0;
+    background: radial-gradient(1100px 540px at 18% -12%, #ffffff 0%, #eef2f9 52%, #e7edf7 100%);
+    color: var(--ink);
+    font-family: "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 1140px;
+    margin: 0 auto;
+    padding: 26px 22px 46px;
+    display: grid;
+    grid-template-columns: 322px minmax(0, 1fr);
+    gap: 22px;
+    align-items: start;
+  }
+  @media (max-width: 940px) {
+    .wrap { grid-template-columns: minmax(0, 1fr); padding: 18px 14px 34px; }
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    box-shadow: 0 10px 32px rgba(23, 43, 77, .06);
+  }
+
+  /* ---------------- 左侧面板 ---------------- */
+  .panel { padding: 20px 20px 18px; }
+  .hd h1 {
+    margin: 0 0 6px;
+    font-size: 20px;
+    letter-spacing: .3px;
+    font-weight: 700;
+  }
+  .hd p { margin: 0; font-size: 12.5px; color: var(--ink2); line-height: 1.5; }
+
+  .stats {
+    margin-top: 16px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .stat {
+    background: #f7f9fd;
+    border: 1px solid #edf1f8;
+    border-radius: 12px;
+    padding: 10px 12px;
+  }
+  .stat span { display: block; font-size: 11.5px; color: var(--ink2); margin-bottom: 3px; }
+  .stat .v {
+    font-size: 15px;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+  }
+  .stat .v.big { font-size: 22px; line-height: 1.15; letter-spacing: -.5px; }
+  .stat .v.ok { color: #15803d; }
+  .stat .v.bad { color: #dc2626; }
+
+  .rows { margin-top: 12px; border-top: 1px dashed var(--line); padding-top: 10px; }
+  .row {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 12.5px; color: var(--ink2); padding: 3px 2px;
+  }
+  .row b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  .btns {
+    margin-top: 16px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .btns .wide { grid-column: 1 / -1; }
+  button {
+    font: inherit;
+    font-size: 13px;
+    padding: 9px 10px;
+    border-radius: 10px;
+    border: 1px solid #dfe6f2;
+    background: #fff;
+    color: var(--ink);
+    cursor: pointer;
+    transition: background .15s, border-color .15s, transform .06s, box-shadow .15s;
+  }
+  button:hover:not(:disabled) { background: #f4f7fd; border-color: #cfdcef; }
+  button:active:not(:disabled) { transform: translateY(1px); }
+  button.primary {
+    background: var(--brand);
+    border-color: var(--brand);
+    color: #fff;
+    font-weight: 600;
+    box-shadow: 0 6px 16px rgba(37, 99, 235, .22);
+  }
+  button.primary:hover { background: #1d55d0; border-color: #1d55d0; }
+  button:disabled { opacity: .42; cursor: not-allowed; box-shadow: none; }
+
+  .speed {
+    margin-top: 14px;
+    display: flex; align-items: center; gap: 9px;
+    font-size: 12.5px; color: var(--ink2);
+  }
+  .speed input { flex: 1; accent-color: var(--brand); }
+  .speed span { min-width: 62px; text-align: right; color: var(--ink); font-weight: 600; font-size: 12px; }
+
+  .replay { display: none; margin-top: 10px; }
+  .replay input { width: 100%; accent-color: var(--brand); }
+  .replay span { font-size: 11.5px; color: var(--ink2); font-variant-numeric: tabular-nums; }
+
+  .note {
+    margin: 14px 0 0;
+    padding: 11px 12px;
+    background: var(--brand-soft);
+    border-radius: 11px;
+    font-size: 12.5px;
+    line-height: 1.62;
+    color: #274b8a;
+  }
+  .note b { color: #14306b; }
+
+  /* ---------------- 右侧棋盘 ---------------- */
+  .stage { padding: 14px 14px 16px; }
+  .legend {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 14px;
+    padding: 2px 4px 12px;
+    font-size: 12px; color: var(--ink2);
+  }
+  .legend i.dot { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+  .legend .head { background: #0b6b38; }
+  .legend .body { background: #2f9e60; }
+  .legend .apple { background: var(--apple); border-radius: 50%; }
+  .legend .path { background: rgba(37, 99, 235, .35); width: 6px; height: 6px; }
+  .legend em { margin-left: auto; font-style: normal; color: var(--ink3); font-size: 11.5px; }
+  canvas {
+    display: block;
+    width: 100%;
+    max-width: 700px;
+    height: auto;
+    aspect-ratio: 1 / 1;
+    margin: 0 auto;
+    border-radius: 13px;
+    border: 1px solid #dbe4f1;
+    background: #eef3fa;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <aside class="card panel">
+    <div class="hd">
+      <h1>贪吃蛇吃豆</h1>
+      <p>100×100 地图 · 10 颗苹果 · AI 自己算最短路线</p>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><span>步数</span><b class="v big" id="stat-steps">0</b></div>
+      <div class="stat"><span>剩余苹果</span><b class="v big" id="stat-apples">10</b></div>
+      <div class="stat"><span>蛇身长度</span><b class="v" id="stat-len">3</b></div>
+      <div class="stat"><span>状态</span><b class="v" id="stat-status">待开始</b></div>
+    </div>
+
+    <div class="rows">
+      <div class="row"><span>规划下界</span><b id="stat-opt">--</b></div>
+      <div class="row"><span>比下界多走</span><b id="stat-gap">--</b></div>
+    </div>
+
+    <div class="btns">
+      <button id="btn-new" class="primary">新开一局</button>
+      <button id="btn-ai">AI 自动玩</button>
+      <button id="btn-step">单步</button>
+      <button id="btn-finish">一键跑完</button>
+      <button id="btn-replay" class="wide" disabled>看回放</button>
+    </div>
+
+    <div class="speed">
+      <label for="speed">速度</label>
+      <input type="range" id="speed" min="0" max="5" step="1" value="2" />
+      <span id="speed-txt">40 步/秒</span>
+    </div>
+
+    <div class="replay" id="replay-bar">
+      <input type="range" id="replay-range" min="0" max="0" step="1" value="0" />
+      <span id="replay-txt">回放 0 / 0 步</span>
+    </div>
+
+    <p class="note" id="note"></p>
+  </aside>
+
+  <main class="card stage">
+    <div class="legend">
+      <span><i class="dot head"></i>蛇头</span>
+      <span><i class="dot body"></i>蛇身</span>
+      <span><i class="dot apple"></i>苹果</span>
+      <span><i class="dot path"></i>规划路线</span>
+      <em>空格：开始 / 暂停 · R：重开</em>
+    </div>
+    <canvas id="board"></canvas>
+  </main>
+</div>
+
+<script>
+/*
+ * engine.js —— 贪吃蛇吃豆 · 纯逻辑内核（不依赖 DOM，可在 Node 里直接跑）
+ *
+ * 规则：
+ *   地图 100×100，四周是墙（越界即死）
+ *   开局蛇长 3 格，随机位置 + 随机朝向
+ *   随机撒 10 个苹果，互不重叠、不在蛇身上
+ *   每走 1 格 = 1 步；吃到苹果蛇身 +1
+ *   撞墙 / 撞自己 → 游戏结束（本局成绩无效）
+ *   10 个苹果吃完 → 通关
+ *
+ * AI 思路：
+ *   1) 用 BFS 在“把蛇身当障碍”的网格上求真实最短路径（不是曼哈顿近似）
+ *   2) 用 Held-Karp 动态规划在 10 个苹果上解出精确的访问顺序（TSP 最短巡游）
+ *   3) 每走一步前做“安全闸”：模拟落子后做洪水填充，
+ *      若剩余自由空间不足以容纳整条蛇，就换目标或改走空间最大的方向，避免把自己困死
+ */
+(function (root) {
+  'use strict';
+
+  const N = 100;                 // 地图边长
+  const APPLE_COUNT = 10;        // 苹果数量
+  const START_LEN = 3;           // 初始蛇长
+  const DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
+  const INF = Infinity;
+
+  // ---- 复用的缓冲区，避免每步新建数组（高速回放时很关键）----
+  const DIST = new Int32Array(N * N);
+  const PREV = new Int32Array(N * N);
+  const QUEUE = new Int32Array(N * N);
+  const BLOCKED = new Uint8Array(N * N);
+  const SEEN = new Uint8Array(N * N);
+
+  const idx = (x, y) => y * N + x;
+  const inb = (x, y) => x >= 0 && y >= 0 && x < N && y < N;
+
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // 把蛇身写进障碍表。蛇头自己不算障碍；skipTail 时尾巴那格视为“即将腾空”
+  function setBlocked(snake, skipTail) {
+    BLOCKED.fill(0);
+    const end = skipTail ? snake.length - 1 : snake.length;
+    for (let i = 1; i < end; i++) BLOCKED[idx(snake[i].x, snake[i].y)] = 1;
+  }
+
+  // 从 (sx,sy) 出发的 BFS，结果写进 DIST / PREV（-1 表示不可达）
+  function bfs(sx, sy) {
+    DIST.fill(-1);
+    PREV.fill(-1);
+    const s = idx(sx, sy);
+    let qh = 0, qt = 0;
+    DIST[s] = 0;
+    QUEUE[qt++] = s;
+    while (qh < qt) {
+      const cur = QUEUE[qh++];
+      const cx = cur % N, cy = (cur / N) | 0;
+      const nd = DIST[cur] + 1;
+      for (let i = 0; i < 4; i++) {
+        const nx = cx + DIRS[i][0], ny = cy + DIRS[i][1];
+        if (!inb(nx, ny)) continue;
+        const ni = idx(nx, ny);
+        if (DIST[ni] !== -1 || BLOCKED[ni]) continue;
+        DIST[ni] = nd;
+        PREV[ni] = cur;
+        QUEUE[qt++] = ni;
+      }
+    }
+  }
+
+  // 洪水填充：从 (sx,sy) 能走到的格子数（用来判断会不会把自己困死）
+  function freeCells(sx, sy) {
+    SEEN.fill(0);
+    const s = idx(sx, sy);
+    if (BLOCKED[s]) return 0;
+    let qh = 0, qt = 0, count = 0;
+    SEEN[s] = 1;
+    QUEUE[qt++] = s;
+    count = 1;
+    while (qh < qt) {
+      const cur = QUEUE[qh++];
+      const cx = cur % N, cy = (cur / N) | 0;
+      for (let i = 0; i < 4; i++) {
+        const nx = cx + DIRS[i][0], ny = cy + DIRS[i][1];
+        if (!inb(nx, ny)) continue;
+        const ni = idx(nx, ny);
+        if (SEEN[ni] || BLOCKED[ni]) continue;
+        SEEN[ni] = 1;
+        QUEUE[qt++] = ni;
+        count++;
+      }
+    }
+    return count;
+  }
+
+  class Game {
+    constructor(seed) {
+      this.seed = (seed === undefined || seed === null) ? ((Math.random() * 1e9) | 0) : seed;
+      this.rng = mulberry32(this.seed);
+      this.reset();
+    }
+
+    /* ---------------- 开局 ---------------- */
+    reset(seed) {
+      if (seed !== undefined && seed !== null) {
+        this.seed = seed;
+        this.rng = mulberry32(seed);
+      }
+      const r = this.rng;
+
+      // 随机朝向 + 随机位置（留边距，保证蛇身整条都在场内）
+      const d = DIRS[Math.floor(r() * 4)];
+      const hx = 10 + Math.floor(r() * (N - 20));
+      const hy = 10 + Math.floor(r() * (N - 20));
+      this.snake = [];
+      for (let i = 0; i < START_LEN; i++) {
+        this.snake.push({ x: hx - i * d[0], y: hy - i * d[1] });
+      }
+      this.dir = { x: d[0], y: d[1] };
+
+      // 10 个苹果：不重叠、不落在蛇身上
+      this.apples = [];
+      const used = new Set(this.snake.map(p => idx(p.x, p.y)));
+      let guard = 0;
+      while (this.apples.length < APPLE_COUNT && guard++ < 100000) {
+        const x = 2 + Math.floor(r() * (N - 4));
+        const y = 2 + Math.floor(r() * (N - 4));
+        const k = idx(x, y);
+        if (used.has(k)) continue;
+        used.add(k);
+        this.apples.push({ x, y });
+      }
+
+      this.steps = 0;
+      this.status = 'ready';      // ready | running | over | win
+      this.deathReason = '';
+      this.history = [];
+      this.path = [];             // 当前路线（用于画面上的虚线引导）
+      this.plan = this.computePlan();
+      this.optTotal = this.plan.total;  // 规划出来的最短巡游长度（参考下界）
+      this.record();
+    }
+
+    /* -------- 规划：BFS 距离矩阵 + Held-Karp 精确最短巡游 -------- */
+    computePlan() {
+      const head = this.snake[0];
+      const n = this.apples.length;
+      if (n === 0) return { order: [], total: 0 };
+
+      setBlocked(this.snake, true);
+      bfs(head.x, head.y);
+      const fromHead = this.apples.map(a => DIST[idx(a.x, a.y)]);
+
+      const keep = [];
+      for (let i = 0; i < n; i++) if (fromHead[i] >= 0) keep.push(i);
+      if (keep.length === 0) return { order: [], total: 0 };
+
+      const k = keep.length;
+      const pts = keep.map(i => this.apples[i]);
+
+      // 两两之间的真实最短步数（苹果之间也是 BFS，不是曼哈顿）
+      const dm = [];
+      for (let i = 0; i < k; i++) {
+        setBlocked(this.snake, true);
+        bfs(pts[i].x, pts[i].y);
+        const row = new Array(k);
+        for (let j = 0; j < k; j++) {
+          const d = DIST[idx(pts[j].x, pts[j].y)];
+          row[j] = d >= 0 ? d : Math.abs(pts[j].x - pts[i].x) + Math.abs(pts[j].y - pts[i].y);
+        }
+        dm.push(row);
+      }
+      const d0 = keep.map(i => {
+        const d = fromHead[i];
+        return d >= 0 ? d : Math.abs(this.apples[i].x - head.x) + Math.abs(this.apples[i].y - head.y);
+      });
+
+      // Held-Karp DP：dp[mask][last]
+      const full = 1 << k;
+      const dp = new Float64Array(full * k).fill(INF);
+      const par = new Int8Array(full * k).fill(-1);
+      for (let i = 0; i < k; i++) dp[(1 << i) * k + i] = d0[i];
+
+      for (let mask = 1; mask < full; mask++) {
+        for (let i = 0; i < k; i++) {
+          if (!(mask & (1 << i))) continue;
+          const cur = dp[mask * k + i];
+          if (cur === INF) continue;
+          for (let j = 0; j < k; j++) {
+            if (mask & (1 << j)) continue;
+            const nm = mask | (1 << j);
+            const nc = cur + dm[i][j];
+            if (nc < dp[nm * k + j]) {
+              dp[nm * k + j] = nc;
+              par[nm * k + j] = i;
+            }
+          }
+        }
+      }
+
+      let bestI = 0, bestCost = INF;
+      for (let i = 0; i < k; i++) {
+        const c = dp[(full - 1) * k + i];
+        if (c < bestCost) { bestCost = c; bestI = i; }
+      }
+
+      const order = [];
+      let mask = full - 1, i = bestI;
+      while (i !== -1) {
+        order.push(pts[i]);
+        const p = par[mask * k + i];
+        mask &= ~(1 << i);
+        i = p;
+      }
+      order.reverse();
+      return { order, total: bestCost === INF ? 0 : bestCost };
+    }
+
+    /* -------- 单步决策：返回下一步坐标 -------- */
+    chooseMove() {
+      if (this.apples.length === 0) return null;
+      const head = this.snake[0];
+
+      for (let attempt = 0; attempt < 4; attempt++) {
+        if (!this.plan || !this.plan.order || this.plan.order.length === 0) {
+          this.plan = this.computePlan();
+          if (!this.plan.order.length) break;
+        }
+        // 去掉已经被吃掉的（或已不在场的）目标
+        while (this.plan.order.length && !this.apples.some(a => a.x === this.plan.order[0].x && a.y === this.plan.order[0].y)) {
+          this.plan.order.shift();
+        }
+        if (!this.plan.order.length) break;
+
+        const target = this.plan.order[0];
+        setBlocked(this.snake, true);
+        bfs(head.x, head.y);
+        const ti = idx(target.x, target.y);
+        if (DIST[ti] < 0) { this.plan = null; continue; }   // 目标被围死 → 重新规划
+
+        const step = this.firstStep(ti);
+        if (!step) { this.plan = null; continue; }
+
+        if (this.isSafe(step)) {
+          this.path = this.buildPath(ti);
+          return step;
+        }
+        this.plan = null;   // 这一步会把蛇困住 → 重新规划
+      }
+
+      this.path = [];
+      return this.survivalMove();
+    }
+
+    firstStep(ti) {
+      const path = [];
+      let cur = ti;
+      while (PREV[cur] !== -1) {
+        path.push(cur);
+        cur = PREV[cur];
+      }
+      if (path.length === 0) return null;
+      const c = path[path.length - 1];
+      return { x: c % N, y: (c / N) | 0 };
+    }
+
+    buildPath(ti) {
+      const path = [];
+      let cur = ti;
+      while (PREV[cur] !== -1) {
+        path.push({ x: cur % N, y: (cur / N) | 0 });
+        cur = PREV[cur];
+      }
+      return path.reverse();
+    }
+
+    // 模拟落子后的蛇（吃苹果则不变尾巴，否则去尾）
+    simulate(step) {
+      if (!inb(step.x, step.y)) return null;
+      const eating = this.apples.some(a => a.x === step.x && a.y === step.y);
+      const limit = eating ? this.snake.length : this.snake.length - 1;
+      for (let i = 0; i < limit; i++) {
+        if (this.snake[i].x === step.x && this.snake[i].y === step.y) return null;
+      }
+      const arr = [{ x: step.x, y: step.y }];
+      for (let i = 0; i < limit; i++) arr.push(this.snake[i]);
+      return arr;
+    }
+
+    // 安全闸：走完这一步之后，蛇头还能活动的空间够不够长
+    isSafe(step) {
+      const ns = this.simulate(step);
+      if (!ns) return false;
+      BLOCKED.fill(0);
+      for (let i = 1; i < ns.length; i++) BLOCKED[idx(ns[i].x, ns[i].y)] = 1;
+      const free = freeCells(step.x, step.y);
+      return free >= ns.length + 2;
+    }
+
+    // 兜底：往“剩余空间最大”的方向跑
+    survivalMove() {
+      const head = this.snake[0];
+      let best = null, bestFree = -1;
+      for (let i = 0; i < 4; i++) {
+        const step = { x: head.x + DIRS[i][0], y: head.y + DIRS[i][1] };
+        const ns = this.simulate(step);
+        if (!ns) continue;
+        BLOCKED.fill(0);
+        for (let j = 1; j < ns.length; j++) BLOCKED[idx(ns[j].x, ns[j].y)] = 1;
+        const free = freeCells(step.x, step.y);
+        if (free > bestFree) { bestFree = free; best = step; }
+      }
+      return best;
+    }
+
+    /* -------- 落子：碰撞判定 + 计步 + 吃豆 -------- */
+    applyStep(step) {
+      const head = this.snake[0];
+      const nx = step.x, ny = step.y;
+
+      if (!inb(nx, ny)) { this.die('撞墙'); return; }
+
+      const ai = this.apples.findIndex(a => a.x === nx && a.y === ny);
+      const eating = ai >= 0;
+      const limit = eating ? this.snake.length : this.snake.length - 1;
+      for (let i = 0; i < limit; i++) {
+        if (this.snake[i].x === nx && this.snake[i].y === ny) { this.die('撞到自己'); return; }
+      }
+
+      this.dir = { x: nx - head.x, y: ny - head.y };
+      this.snake.unshift({ x: nx, y: ny });
+      this.steps++;
+
+      if (eating) {
+        this.apples.splice(ai, 1);
+        if (this.apples.length === 0) this.status = 'win';
+      } else {
+        this.snake.pop();
+      }
+      this.record();
+    }
+
+    die(reason) {
+      this.status = 'over';
+      this.deathReason = reason;
+      this.record();
+    }
+
+    aiStep() {
+      if (this.status === 'over' || this.status === 'win') return false;
+      if (this.status === 'ready') this.status = 'running';
+      const mv = this.chooseMove();
+      if (!mv) { this.die('无路可走'); return false; }
+      this.applyStep(mv);
+      return true;
+    }
+
+    runToEnd(maxSteps) {
+      const cap = maxSteps || 20000;
+      let n = 0;
+      while (this.status !== 'over' && this.status !== 'win' && n++ < cap) this.aiStep();
+      return this.steps;
+    }
+
+    record() {
+      this.history.push({
+        snake: this.snake.map(p => [p.x, p.y]),
+        apples: this.apples.map(a => [a.x, a.y]),
+        steps: this.steps,
+        status: this.status,
+        target: (this.plan && this.plan.order && this.plan.order[0])
+          ? [this.plan.order[0].x, this.plan.order[0].y]
+          : null
+      });
+    }
+  }
+
+  root.Engine = { Game, N, APPLE_COUNT, START_LEN, DIRS };
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+</script>
+<script>
+/* app.js —— 界面层：绘制 / 播放控制 / 回放 */
+(function () {
+  'use strict';
+
+  const E = window.Engine;
+  const N = E.N;
+  const CELL = 7;
+  const SIZE = N * CELL;            // 700
+
+  const canvas = document.getElementById('board');
+  const ctx = canvas.getContext('2d');
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = SIZE * dpr;
+  canvas.height = SIZE * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  /* ---------------- 棋盘底图（只画一次） ---------------- */
+  const bg = document.createElement('canvas');
+  bg.width = SIZE * dpr;
+  bg.height = SIZE * dpr;
+  (function paintGrid() {
+    const g = bg.getContext('2d');
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.fillStyle = '#eef3fa';
+    g.fillRect(0, 0, SIZE, SIZE);
+    g.lineWidth = 1;
+    for (let i = 0; i <= N; i++) {
+      const p = i * CELL + 0.5;
+      const major = i % 10 === 0;
+      g.strokeStyle = major ? '#d5e0f0' : '#e6edf7';
+      g.beginPath();
+      g.moveTo(p, 0); g.lineTo(p, SIZE);
+      g.moveTo(0, p); g.lineTo(SIZE, p);
+      g.stroke();
+    }
+  })();
+
+  /* ---------------- 状态 ---------------- */
+  let game = new E.Game();
+  let mode = 'idle';          // idle | ai | replay
+  let replayIdx = 0;
+  const SPEEDS = [4, 15, 40, 120, 400, 4000];
+  const SPEED_TXT = ['4 步/秒', '15 步/秒', '40 步/秒', '120 步/秒', '400 步/秒', '瞬间'];
+  let speedIdx = 2;
+  let acc = 0, lastT = performance.now();
+
+  const $ = id => document.getElementById(id);
+  const ui = {
+    steps: $('stat-steps'), apples: $('stat-apples'), len: $('stat-len'), status: $('stat-status'),
+    opt: $('stat-opt'), gap: $('stat-gap'),
+    btnNew: $('btn-new'), btnAI: $('btn-ai'), btnStep: $('btn-step'),
+    btnFinish: $('btn-finish'), btnReplay: $('btn-replay'),
+    speed: $('speed'), speedTxt: $('speed-txt'),
+    note: $('note'), replayBar: $('replay-bar'), replayRange: $('replay-range'), replayTxt: $('replay-txt')
+  };
+
+  /* ---------------- 取当前要画的帧 ---------------- */
+  function view() {
+    if (mode === 'replay' && game.history.length) {
+      const h = game.history[Math.min(replayIdx, game.history.length - 1)];
+      return { snake: h.snake, apples: h.apples, target: h.target, path: null, steps: h.steps, status: h.status };
+    }
+    return {
+      snake: game.snake.map(p => [p.x, p.y]),
+      apples: game.apples.map(a => [a.x, a.y]),
+      target: (game.plan && game.plan.order && game.plan.order[0]) ? [game.plan.order[0].x, game.plan.order[0].y] : null,
+      path: game.path,
+      steps: game.steps,
+      status: game.status
+    };
+  }
+
+  function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(x, y, w, h, r);
+    else ctx.rect(x, y, w, h);
+    ctx.fill();
+  }
+
+  function draw() {
+    const f = view();
+    ctx.clearRect(0, 0, SIZE, SIZE);
+    ctx.drawImage(bg, 0, 0, SIZE, SIZE);
+
+    // 规划路线（淡淡的小点）
+    if (f.path && f.path.length) {
+      ctx.fillStyle = 'rgba(37,99,235,0.20)';
+      for (let i = 0; i < f.path.length; i++) {
+        const p = f.path[i];
+        ctx.fillRect(p.x * CELL + 2.6, p.y * CELL + 2.6, 1.8, 1.8);
+      }
+    }
+
+    // 当前目标的蓝色光圈
+    if (f.target) {
+      ctx.strokeStyle = 'rgba(37,99,235,0.65)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.arc(f.target[0] * CELL + CELL / 2, f.target[1] * CELL + CELL / 2, CELL * 0.95, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // 苹果
+    for (let i = 0; i < f.apples.length; i++) {
+      const a = f.apples[i];
+      const cx = a[0] * CELL + CELL / 2, cy = a[1] * CELL + CELL / 2;
+      ctx.fillStyle = '#e5484d';
+      ctx.beginPath();
+      ctx.arc(cx, cy, CELL * 0.36, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.beginPath();
+      ctx.arc(cx - CELL * 0.12, cy - CELL * 0.12, CELL * 0.10, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 蛇
+    const s = f.snake;
+    for (let i = s.length - 1; i >= 0; i--) {
+      const p = s[i];
+      if (i === 0) {
+        ctx.fillStyle = '#0b6b38';
+      } else {
+        const t = s.length > 1 ? i / (s.length - 1) : 0;
+        ctx.fillStyle = `hsl(148, ${46 - 10 * t}%, ${36 + 16 * t}%)`;
+      }
+      roundRect(p[0] * CELL + 0.5, p[1] * CELL + 0.5, CELL - 1, CELL - 1, i === 0 ? 2.4 : 1.8);
+    }
+  }
+
+  /* ---------------- 面板 ---------------- */
+  function statusText(f) {
+    if (f.status === 'ready') return '待开始';
+    if (f.status === 'running') return '进行中';
+    if (f.status === 'win') return '通关 ✓';
+    return '撞毁 ×';
+  }
+
+  function updateUI() {
+    const f = view();
+    ui.steps.textContent = f.steps;
+    ui.apples.textContent = f.apples.length;
+    ui.len.textContent = f.snake.length;
+    ui.status.textContent = statusText(f);
+    ui.status.className = 'v ' + (f.status === 'win' ? 'ok' : f.status === 'over' ? 'bad' : '');
+    ui.opt.textContent = game.optTotal ? game.optTotal + ' 步' : '--';
+    ui.gap.textContent = (f.status === 'win' || f.status === 'over') ? (f.steps - game.optTotal) + ' 步' : '--';
+
+    const ended = f.status === 'over' || f.status === 'win';
+    ui.btnAI.disabled = ended;
+    ui.btnAI.textContent = mode === 'ai' ? '暂停' : (f.status === 'running' ? '继续' : 'AI 自动玩');
+    ui.btnStep.disabled = ended || mode === 'replay';
+    ui.btnFinish.disabled = ended || mode === 'replay';
+    ui.btnReplay.disabled = game.history.length < 2;
+    ui.btnReplay.textContent = mode === 'replay' ? '退出回放' : '看回放';
+
+    ui.replayBar.style.display = mode === 'replay' ? 'block' : 'none';
+    if (mode === 'replay') {
+      ui.replayRange.max = String(game.history.length - 1);
+      ui.replayRange.value = String(replayIdx);
+      ui.replayTxt.textContent = `回放 ${replayIdx} / ${game.history.length - 1} 步`;
+    }
+
+    // 底部说明
+    let note;
+    if (mode === 'replay') {
+      note = '正在回放历史轨迹。拖动进度条可以逐帧查看，每帧记录当时的蛇身、苹果和步数。';
+    } else if (f.status === 'win') {
+      note = `10 个苹果全部吃完，总步数 <b>${game.steps}</b>。规划下界 ${game.optTotal} 步，多走 ${game.steps - game.optTotal} 步。`;
+    } else if (f.status === 'over') {
+      note = `游戏结束：${game.deathReason}，本局成绩无效。点"新开一局"再来。`;
+    } else if (mode === 'ai') {
+      note = f.target
+        ? `AI 正在前往苹果 (${f.target[0]}, ${f.target[1]})，剩余路线 ${f.path ? f.path.length : 0} 步。`
+        : 'AI 正在规划路线…';
+    } else {
+      note = '点"AI 自动玩"，蛇会自动规划：先用 BFS 算真实最短路径，再用动态规划排出吃 10 个苹果的最优顺序。';
+    }
+    ui.note.innerHTML = note;
+  }
+
+  /* ---------------- 主循环 ---------------- */
+  function loop(t) {
+    const dt = Math.min(t - lastT, 250);
+    lastT = t;
+    const sps = SPEEDS[speedIdx];
+
+    if (mode === 'ai' && (game.status === 'ready' || game.status === 'running')) {
+      acc += dt;
+      const iv = 1000 / sps;
+      let guard = 0;
+      while (acc >= iv && guard++ < 5000) {
+        acc -= iv;
+        game.aiStep();
+        if (game.status === 'over' || game.status === 'win') { mode = 'idle'; acc = 0; break; }
+      }
+      if (guard >= 5000) acc = 0;
+    } else if (mode === 'replay') {
+      acc += dt;
+      const iv = 1000 / Math.min(sps, 400);
+      let guard = 0;
+      while (acc >= iv && guard++ < 600) {
+        acc -= iv;
+        if (replayIdx < game.history.length - 1) replayIdx++;
+        else { mode = 'idle'; break; }
+      }
+    } else {
+      acc = 0;
+    }
+
+    draw();
+    updateUI();
+    requestAnimationFrame(loop);
+  }
+
+  /* ---------------- 交互 ---------------- */
+  function newGame() {
+    mode = 'idle';
+    acc = 0;
+    game = new E.Game();
+    replayIdx = 0;
+  }
+
+  ui.btnNew.addEventListener('click', newGame);
+  ui.btnAI.addEventListener('click', () => {
+    if (game.status === 'over' || game.status === 'win') return;
+    mode = mode === 'ai' ? 'idle' : 'ai';
+    acc = 0;
+  });
+  ui.btnStep.addEventListener('click', () => {
+    if (game.status === 'over' || game.status === 'win') return;
+    mode = 'idle';
+    game.aiStep();
+    acc = 0;
+  });
+  ui.btnFinish.addEventListener('click', () => {
+    if (game.status === 'over' || game.status === 'win') return;
+    mode = 'idle';
+    game.runToEnd();
+  });
+  ui.btnReplay.addEventListener('click', () => {
+    if (mode === 'replay') { mode = 'idle'; return; }
+    if (game.history.length < 2) return;
+    mode = 'replay';
+    replayIdx = 0;
+    acc = 0;
+  });
+  ui.replayRange.addEventListener('input', e => {
+    replayIdx = parseInt(e.target.value, 10) || 0;
+  });
+  ui.speed.addEventListener('input', e => {
+    speedIdx = parseInt(e.target.value, 10);
+    ui.speedTxt.textContent = SPEED_TXT[speedIdx];
+    acc = 0;
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.code === 'Space') { e.preventDefault(); ui.btnAI.click(); }
+    else if (e.key === 'r' || e.key === 'R') newGame();
+    else if (e.key === 'ArrowRight' && mode === 'replay') { replayIdx = Math.min(replayIdx + 1, game.history.length - 1); mode = 'idle'; }
+    else if (e.key === 'ArrowLeft' && mode === 'replay') { replayIdx = Math.max(replayIdx - 1, 0); mode = 'idle'; }
+  });
+
+  ui.speedTxt.textContent = SPEED_TXT[speedIdx];
+  requestAnimationFrame(loop);
+})();
+
+</script>
+</body>
+</html>
